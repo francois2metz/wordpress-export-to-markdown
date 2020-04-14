@@ -52,9 +52,25 @@ function collectPosts(data, config) {
 			},
 			content: translator.getPostContent(post, turndownService, config)
 		}));
-
+	const pages = getItemsOfType(data, 'page')
+		.filter(post => post.status[0] !== 'trash' && post.status[0] !== 'draft')
+		.map(post => ({
+			// meta data isn't written to file, but is used to help with other things
+			meta: {
+				id: getPostId(post),
+				slug: getPostSlug(post),
+				coverImageId: getPostCoverImageId(post),
+				imageUrls: []
+			},
+			frontmatter: {
+				title: getPostTitle(post),
+				date: getPostDate(post)
+			},
+			content: translator.getPostContent(post, turndownService, config)
+		}));
 	console.log(posts.length + ' posts found.');
-	return posts;
+	console.log(pages.length + ' pages found.');
+    return posts.concat(pages);
 }
 
 function getPostId(post) {
@@ -100,6 +116,23 @@ function collectAttachedImages(data) {
 function collectScrapedImages(data) {
 	const images = [];
 	getItemsOfType(data, 'post').forEach(post => {
+		const postId = post.post_id[0];
+		const postContent = post.encoded[0];
+		const postLink = post.link[0];
+
+		const matches = [...postContent.matchAll(/<img[^>]*src="(.+?\.(?:gif|jpe?g|png))"[^>]*>/gi)];
+		matches.forEach(match => {
+			// base the matched image URL relative to the post URL
+			const url = new URL(match[1], postLink).href;
+
+			images.push({
+				id: -1,
+				postId: postId,
+				url: url
+			});
+		});
+	});
+	getItemsOfType(data, 'page').forEach(post => {
 		const postId = post.post_id[0];
 		const postContent = post.encoded[0];
 		const postLink = post.link[0];
